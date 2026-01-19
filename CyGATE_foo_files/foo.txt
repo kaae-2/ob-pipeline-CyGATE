@@ -1,0 +1,9 @@
+Training.Sample= /home/projects/dp_immunoth/people/helweg/projects/benchmarking/ob-pipeline-CyGATE/tmp_train_unzip/train_xy/train_xy_1.csv
+
+Training.UngatedCellLabel= Ungated
+
+Data.Sample= /home/projects/dp_immunoth/people/helweg/projects/benchmarking/ob-pipeline-CyGATE/tmp_test_unzip/test_x_1.csv
+Data.Sample= /home/projects/dp_immunoth/people/helweg/projects/benchmarking/ob-pipeline-CyGATE/tmp_test_unzip/test_x_2.csv
+Data.Sample= /home/projects/dp_immunoth/people/helweg/projects/benchmarking/ob-pipeline-CyGATE/tmp_test_unzip/test_x_3.csv
+Data.Sample= /home/projects/dp_immunoth/people/helweg/projects/benchmarking/ob-pipeline-CyGATE/tmp_test_unzip/test_x_4.csv
+Data.Sample= /home/projects/dp_immunoth/people/helweg/projects/benchmarking/ob-pipeline-CyGATE/tmp_test_unzip/test_x_5.csv
