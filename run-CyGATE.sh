@@ -88,20 +88,56 @@ mkdir -p "$tmp_pred"
 # -------------------------------
 echo "Unzipping data..."
 
-# Make sure the archive exists before extracting
-[ -f "$DATA_TRAIN_MATRIX" ] || { echo "Error: $DATA_TRAIN_MATRIX not found"; exit 1; }
-[ -f "$DATA_TRAIN_LABELS" ] || { echo "Error: $DATA_TRAIN_LABELS not found"; exit 1; }
-[ -f "$DATA_TEST_MATRIX" ] || { echo "Error: $DATA_TEST_MATRIX not found"; exit 1; }
+# # Make sure the archive exists before extracting
+# [ -f "$DATA_TRAIN_MATRIX" ] || { echo "Error: $DATA_TRAIN_MATRIX not found"; exit 1; }
+# [ -f "$DATA_TRAIN_LABELS" ] || { echo "Error: $DATA_TRAIN_LABELS not found"; exit 1; }
+# [ -f "$DATA_TEST_MATRIX" ] || { echo "Error: $DATA_TEST_MATRIX not found"; exit 1; }
+# 
+# tar -xzvf $DATA_TRAIN_MATRIX -C "$tmp_train_dir/train_x"
+# tar -xzvf $DATA_TRAIN_LABELS -C "$tmp_train_dir/train_y"
+# tar -xzvf $DATA_TEST_MATRIX -C "$tmp_test_dir"
 
-tar -xzvf $DATA_TRAIN_MATRIX -C "$tmp_train_dir/train_x"
-tar -xzvf $DATA_TRAIN_LABELS -C "$tmp_train_dir/train_y"
-tar -xzvf $DATA_TEST_MATRIX -C "$tmp_test_dir"
+# Enable extended globbing and nullglob for safety
+shopt -s nullglob extglob
+
+# Check that each archive exists before extracting
+for archive in "$DATA_TRAIN_MATRIX" "$DATA_TRAIN_LABELS" "$DATA_TEST_MATRIX"; do
+    if [ ! -f "$archive" ]; then
+        echo "Error: Archive $archive not found"
+        exit 1
+    fi
+done
+
+# Extract safely into temp dirs
+if tar -tzf "$DATA_TRAIN_MATRIX" >/dev/null 2>&1; then
+    tar -xzf "$DATA_TRAIN_MATRIX" -C "$tmp_train_dir/train_x"
+else
+    echo "Error: $DATA_TRAIN_MATRIX is not a valid tar.gz file"
+    exit 1
+fi
+
+if tar -tzf "$DATA_TRAIN_LABELS" >/dev/null 2>&1; then
+    tar -xzf "$DATA_TRAIN_LABELS" -C "$tmp_train_dir/train_y"
+else
+    echo "Error: $DATA_TRAIN_LABELS is not a valid tar.gz file"
+    exit 1
+fi
+
+if tar -tzf "$DATA_TEST_MATRIX" >/dev/null 2>&1; then
+    tar -xzf "$DATA_TEST_MATRIX" -C "$tmp_test_dir"
+else
+    echo "Error: $DATA_TEST_MATRIX is not a valid tar.gz file"
+    exit 1
+fi
+
+echo "Data unzipped successfully"
 
 # -------------------------------
 # MERGE TRAIN X AND Y
 # -------------------------------
 echo "Merging train x and y..."
 
+# enable extended globbing
 shopt -s nullglob
 
 # Assumes matching filenames between train_x and train_y
@@ -159,9 +195,6 @@ echo "" >> "$foo_file"
 echo "Training.UngatedCellLabel= $Training_UngatedCellLabel" >> "$foo_file"
 echo "" >> "$foo_file"
 
-# Add test sample lines
-shopt -s extglob  # enable extended globbing
-
 # Loop over test CSVs
 for testfile in "$tmp_test_dir/data_import-data-"+([0-9]).csv; do
     # Skip files that might already have *_cygated.csv
@@ -183,7 +216,6 @@ for testfile in "$tmp_test_dir/data_import-data-"+([0-9]).csv; do
     echo "Data.Sample= $testfile" >> "$foo_file"
 done
 
-shopt -u extglob
 
 # -------------------------------
 # RUN CyGATE
@@ -199,8 +231,6 @@ java -jar "$TMP_JAR/CyGate_v1.02.jar" --c "$foo_file"
 # -------------------------------
 
 echo "Wrapping up output..."
-
-shopt -s extglob
 
 for cygated in "$tmp_test_dir/data_import-data-"+([0-9])_cygated.csv; do
 
