@@ -26,7 +26,7 @@ pred_y_list <- setNames(vector("list", length(pred_y_files)), pred_y_files)
 tmp <- tempdir()
 utils::untar(pred_y_path, exdir = tmp)
 
-for (file in pred_y_files) {
+for (file in pred_y_files[c(2:length(pred_y_files))]) {
   df <- read_csv(file.path(tmp, file), col_names = FALSE)
   pred_y_list[[file]] <- df
 }
