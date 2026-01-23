@@ -34,24 +34,24 @@ done
 
 # Check required arguments
 if [[ -z "${DATA_TRAIN_MATRIX:-}" ]]; then
-    echo "Error: --data.train_matrix is required"
+    echo "Error: --data.train_matrix is required" >&2
     exit 1
 fi
 if [[ -z "${DATA_TRAIN_LABELS:-}" ]]; then
-    echo "Error: --data.train_labels is required"
+    echo "Error: --data.train_labels is required" >&2
     exit 1
 fi
 if [[ -z "${DATA_TEST_MATRIX:-}" ]]; then
-    echo "Error: --data.test_matrix is required"
+    echo "Error: --data.test_matrix is required" >&2
     exit 1
 fi
 
 # Print parsed arguments (for debug)
-echo "Train matrix: $DATA_TRAIN_MATRIX"
-echo "Train labels: $DATA_TRAIN_LABELS"
-echo "Test matrix: $DATA_TEST_MATRIX"
-echo "Output dir: $OUTPUT_DIR"
-echo "Dataset name: $NAME"
+echo "Train matrix: $DATA_TRAIN_MATRIX" >&2
+echo "Train labels: $DATA_TRAIN_LABELS" >&2
+echo "Test matrix: $DATA_TEST_MATRIX" >&2
+echo "Output dir: $OUTPUT_DIR" >&2
+echo "Dataset name: $NAME" >&2
 
 # -------------------------------
 # PATHS
@@ -65,7 +65,7 @@ tmp_pred=$(mktemp -d)
 
 TMP_JAR=$(mktemp -d)
 wget "https://github.com/HanyangBISLab/cygate/raw/main/CyGate_v1.02.jar" -O "$TMP_JAR/CyGate_v1.02.jar"
-echo "JAR file downloaded"
+echo "JAR file downloaded" >&2
 
 # PATHS FOR LOCAL TEST RUN 
 # tmp_train_dir="/Users/srz223/Documents/courses/Benchmarking/repos/ob-pipeline-CyGATE/tmp_train"
@@ -75,7 +75,7 @@ echo "JAR file downloaded"
 # tmp_pred="/Users/srz223/Documents/courses/Benchmarking/repos/ob-pipeline-CyGATE/tmp_pred"
 # OUTPUT_DIR="/Users/srz223/Documents/courses/Benchmarking/repos/ob-pipeline-CyGATE/tmp_out"
 
-echo "Making tmp dirs..."
+echo "Making tmp dirs..." >&2
 mkdir -p "$foo_dir"
 mkdir -p "$tmp_train_dir/train_x"
 mkdir -p "$tmp_train_dir/train_y"
@@ -86,7 +86,7 @@ mkdir -p "$tmp_pred"
 # -------------------------------
 # UNZIP TRAINING X AND Y
 # -------------------------------
-echo "Unzipping data..."
+echo "Unzipping data..." >&2
 
 # # Make sure the archive exists before extracting
 # [ -f "$DATA_TRAIN_MATRIX" ] || { echo "Error: $DATA_TRAIN_MATRIX not found"; exit 1; }
@@ -130,12 +130,12 @@ else
     exit 1
 fi
 
-echo "Data unzipped successfully"
+echo "Data unzipped successfully" >&2
 
 # -------------------------------
 # MERGE TRAIN X AND Y
 # -------------------------------
-echo "Merging train x and y..."
+echo "Merging train x and y..." >&2
 
 # enable extended globbing
 shopt -s nullglob
@@ -182,7 +182,7 @@ done
 # -------------------------------
 # CREATE foo.txt
 # -------------------------------
-echo "Creating foo file..."
+echo "Creating foo file..." >&2
 
 foo_file="$foo_dir/foo.txt" > "$foo_file"
 
@@ -221,7 +221,7 @@ done
 # RUN CyGATE
 # -------------------------------
 
-echo "Running CyGATE..."
+echo "Running CyGATE..." >&2
 
 java -jar "$TMP_JAR/CyGate_v1.02.jar" --c "$foo_file"
 # rm -f "$TMP_JAR"
@@ -230,7 +230,7 @@ java -jar "$TMP_JAR/CyGate_v1.02.jar" --c "$foo_file"
 # WRAP UP OUTPUT
 # -------------------------------
 
-echo "Wrapping up output..."
+echo "Wrapping up output..." >&2
 
 for cygated in "$tmp_test_dir/data_import-data-"+([0-9])_cygated.csv; do
 
@@ -248,13 +248,13 @@ done
 
 shopt -u extglob
 
-echo "Zipping output..."
+echo "Zipping output..." >&2
 tar -czvf "$OUTPUT_DIR/$NAME"_predicted_labels.tar.gz -C "$tmp_pred"
 
 # -------------------------------
 # CLEANUP
 # -------------------------------
-echo "Cleaning up..."
+echo "Cleaning up..." >&2
 
 rm -rf "$tmp_train_dir"
 rm -rf "$tmp_test_dir"
