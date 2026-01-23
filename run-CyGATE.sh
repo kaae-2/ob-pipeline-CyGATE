@@ -249,7 +249,7 @@ done
 shopt -u extglob
 
 echo "Zipping output..." >&2
-tar -czvf "$OUTPUT_DIR/$NAME"_predicted_labels.tar.gz -C "$tmp_pred" predicted_labels
+tar -czvf "$OUTPUT_DIR/$NAME"_predicted_labels.tar.gz -C "$tmp_pred" .
 
 # -------------------------------
 # CLEANUP
