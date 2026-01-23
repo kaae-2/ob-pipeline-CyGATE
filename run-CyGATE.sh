@@ -253,8 +253,6 @@ echo "Zipping output..." >&2
 # tar -czvf "$OUTPUT_DIR/$NAME"_predicted_labels.tar.gz *.csv
 tar -czvf "$OUTPUT_DIR/$NAME"_predicted_labels.tar.gz -C "$tmp_pred" "$tmp_pred"
 
-cd -
-
 # -------------------------------
 # CLEANUP
 # -------------------------------
