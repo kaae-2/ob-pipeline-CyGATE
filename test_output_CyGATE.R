@@ -6,6 +6,8 @@ library(caret)   # for F1 calculation
 # Set paths 
 test_y_path <- "/Users/srz223/Documents/courses/Benchmarking/repos/ob-pipeline-cytof/out/data/data_import/dataset_name-FR-FCM-Z2KP_virus_final_seed-42/preprocessing/data_preprocessing/num-1_test-sample-limit-5/data_import.test.labels.tar.gz"
 pred_y_path <- "/Users/srz223/Documents/courses/Benchmarking/repos/ob-pipeline-cytof/out/data/data_import/.0a2e7b8e58f3cc4a3859f604f164c7ff4a1398ac6dff16c26d45d97b876997c7/preprocessing/data_preprocessing/.7fa4750eefc52d3bd8051ca6a0cc5d9bde7c21938c0d8f384542306fe0569059/analysis/cygate/default/data_import_predicted_labels.tar.gz"
+# pred_y_path <- "/Users/srz223/Documents/courses/Benchmarking/repos/ob-pipeline-CyGATE/tmp_out/predicted_labels.tar.gz"
+
 
 # Load data 
 test_y_files <- utils::untar(test_y_path, list = TRUE)
@@ -22,17 +24,18 @@ names(test_y_list) <- names(test_y_list) %>% stringr::str_split_i("_", 2) %>% st
 names(test_y_list)
 
 pred_y_files <- utils::untar(pred_y_path, list = TRUE)
+pred_y_files <- pred_y_files[c(2:length(pred_y_files))]
 pred_y_list <- setNames(vector("list", length(pred_y_files)), pred_y_files)
 tmp <- tempdir()
 utils::untar(pred_y_path, exdir = tmp)
 
-for (file in pred_y_files[c(2:length(pred_y_files))]) {
+for (file in pred_y_files) {
   df <- read_csv(file.path(tmp, file), col_names = FALSE)
   pred_y_list[[file]] <- df
 }
 
 names(pred_y_list)
-names(pred_y_list) <- names(pred_y_list) %>% stringr::str_split_i("/", 8) %>% stringr::str_split_i("_", 3) %>% stringr::str_split_i("-", 3)
+names(pred_y_list) <- names(pred_y_list) %>% stringr::str_split_i("/", 2) %>% stringr::str_split_i("-", 3)
 names(pred_y_list)
 
 
