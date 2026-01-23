@@ -74,6 +74,7 @@ wget "https://github.com/HanyangBISLab/cygate/raw/main/CyGate_v1.02.jar" -O "$TM
 # tmp_pred="/Users/srz223/Documents/courses/Benchmarking/repos/ob-pipeline-CyGATE/tmp_pred"
 # OUTPUT_DIR="/Users/srz223/Documents/courses/Benchmarking/repos/ob-pipeline-CyGATE/tmp_out"
 
+echo "Making tmp dirs..."
 mkdir -p "$foo_dir"
 mkdir -p "$tmp_train_dir/train_x"
 mkdir -p "$tmp_train_dir/train_y"
@@ -84,6 +85,7 @@ mkdir -p "$tmp_pred"
 # -------------------------------
 # UNZIP TRAINING X AND Y
 # -------------------------------
+echo "Unzipping data..."
 
 tar -xzvf $DATA_TRAIN_MATRIX -C "$tmp_train_dir/train_x"
 tar -xzvf $DATA_TRAIN_LABELS -C "$tmp_train_dir/train_y"
@@ -92,6 +94,7 @@ tar -xzvf $DATA_TEST_MATRIX -C "$tmp_test_dir"
 # -------------------------------
 # MERGE TRAIN X AND Y
 # -------------------------------
+echo "Merging train x and y..."
 # Assumes matching filenames between train_x and train_y
 for xfile in "$tmp_train_dir/train_x"/*.csv; do
 
@@ -134,6 +137,8 @@ done
 # -------------------------------
 # CREATE foo.txt
 # -------------------------------
+echo "Creating foo file..."
+
 foo_file="$foo_dir/foo.txt" > "$foo_file"
 
 # Add training sample lines
@@ -175,12 +180,16 @@ shopt -u extglob
 # RUN CyGATE
 # -------------------------------
 
+echo "Running CyGATE..."
+
 java -jar "$TMP_JAR/CyGate_v1.02.jar" --c "$foo_file"
 # rm -f "$TMP_JAR"
 
 # -------------------------------
 # WRAP UP OUTPUT
 # -------------------------------
+
+echo "Wrapping up output..."
 
 shopt -s extglob
 
@@ -200,11 +209,14 @@ done
 
 shopt -u extglob
 
+echo "Zipping output..."
 tar -czvf "$OUTPUT_DIR/$NAME"_predicted_labels.tar.gz -C "$tmp_pred"
 
 # -------------------------------
 # CLEANUP
 # -------------------------------
+echo "Cleaning up..."
+
 rm -rf "$tmp_train_dir"
 rm -rf "$tmp_test_dir"
 rm -rf "$foo_dir"
