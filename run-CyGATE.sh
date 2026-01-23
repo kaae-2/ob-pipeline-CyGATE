@@ -88,6 +88,11 @@ mkdir -p "$tmp_pred"
 # -------------------------------
 echo "Unzipping data..."
 
+# Make sure the archive exists before extracting
+[ -f "$DATA_TRAIN_MATRIX" ] || { echo "Error: $DATA_TRAIN_MATRIX not found"; exit 1; }
+[ -f "$DATA_TRAIN_LABELS" ] || { echo "Error: $DATA_TRAIN_LABELS not found"; exit 1; }
+[ -f "$DATA_TEST_MATRIX" ] || { echo "Error: $DATA_TEST_MATRIX not found"; exit 1; }
+
 tar -xzvf $DATA_TRAIN_MATRIX -C "$tmp_train_dir/train_x"
 tar -xzvf $DATA_TRAIN_LABELS -C "$tmp_train_dir/train_y"
 tar -xzvf $DATA_TEST_MATRIX -C "$tmp_test_dir"
@@ -96,6 +101,9 @@ tar -xzvf $DATA_TEST_MATRIX -C "$tmp_test_dir"
 # MERGE TRAIN X AND Y
 # -------------------------------
 echo "Merging train x and y..."
+
+shopt -s nullglob
+
 # Assumes matching filenames between train_x and train_y
 for xfile in "$tmp_train_dir/train_x"/*.csv; do
 
