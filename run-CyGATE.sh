@@ -236,10 +236,10 @@ for cygated in "$tmp_test_dir/data_import-data-"+([0-9])_cygated.csv; do
 
   # Extract unique sample identifier
   base=$(basename "$cygated" .csv)
-  number=$(echo "$base" | cut -d"-" -f3)
-  
-  echo $base
-  echo $number
+  number=$(echo "$base" | cut -d"-" -f3 | cut -d"_" -f1)
+
+  # echo $base
+  # echo $number
 
   # Extract predicted cell types
   awk -F',' 'NR>1 {print $NF}' $cygated > "$tmp_pred/data_import-data-$number.csv"
