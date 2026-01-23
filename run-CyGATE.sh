@@ -64,13 +64,14 @@ Training_UngatedCellLabel="Ungated" # TODO: UPDATE THIS
 tmp_pred=$(mktemp -d)
 
 TMP_JAR=$(mktemp -d)
-TMP_JAR=$foo_dir
 wget "https://github.com/HanyangBISLab/cygate/raw/main/CyGate_v1.02.jar" -O "$TMP_JAR/CyGate_v1.02.jar"
+echo "JAR file downloaded"
 
 # PATHS FOR LOCAL TEST RUN 
 # tmp_train_dir="/Users/srz223/Documents/courses/Benchmarking/repos/ob-pipeline-CyGATE/tmp_train"
 # tmp_test_dir="/Users/srz223/Documents/courses/Benchmarking/repos/ob-pipeline-CyGATE/tmp_test"
 # foo_dir="/Users/srz223/Documents/courses/Benchmarking/repos/ob-pipeline-CyGATE/tmp_foo"
+# TMP_JAR=$foo_dir
 # tmp_pred="/Users/srz223/Documents/courses/Benchmarking/repos/ob-pipeline-CyGATE/tmp_pred"
 # OUTPUT_DIR="/Users/srz223/Documents/courses/Benchmarking/repos/ob-pipeline-CyGATE/tmp_out"
 
