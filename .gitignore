@@ -3,3 +3,4 @@ tmp_out/
 tmp_pred/
 tmp_test/
 tmp_train/
+out/*
