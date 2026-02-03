@@ -60,7 +60,7 @@ mkdir -p "$OUTPUT_DIR"
 tmp_train_dir=$(mktemp -d)
 tmp_test_dir=$(mktemp -d)
 foo_dir=$(mktemp -d)
-Training_UngatedCellLabel="Ungated" # TODO: UPDATE THIS
+Training_UngatedCellLabel="ungated" # TODO: UPDATE THIS --> done
 tmp_pred=$(mktemp -d)
 
 TMP_JAR=$(mktemp -d)
