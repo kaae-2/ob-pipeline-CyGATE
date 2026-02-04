@@ -291,6 +291,7 @@ for cygated in "$tmp_test_dir/data_import-data-"+([0-9])_cygated.csv; do
   awk -F',' -v ungated="$ungated_id" -v sample="$number" '
     FNR==NR {pred[++n]=$1; next}
     NR==1 {next}
+    $0 ~ /^[[:space:]]*$/ {next}
     {
       missing=0
       for (i=1; i<=NF; i++) {
