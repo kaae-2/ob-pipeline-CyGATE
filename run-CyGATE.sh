@@ -66,6 +66,40 @@ foo_dir=$(mktemp -d)
 Training_UngatedCellLabel="ungated" # TODO: UPDATE THIS --> done
 tmp_pred=$(mktemp -d)
 
+ungated_id=""
+label_key_path="$(dirname "$DATA_TRAIN_LABELS")/${NAME}.label_key.json.gz"
+if [[ ! -f "$label_key_path" ]]; then
+    label_key_path="$(dirname "$DATA_TEST_MATRIX")/${NAME}.label_key.json.gz"
+fi
+if [[ -f "$label_key_path" ]]; then
+    ungated_id=$(LABEL_KEY_PATH="$label_key_path" python - <<'PY'
+import gzip
+import json
+import os
+
+path = os.environ.get("LABEL_KEY_PATH")
+if not path:
+    raise SystemExit(0)
+try:
+    with gzip.open(path, "rt", encoding="utf-8") as handle:
+        payload = json.load(handle)
+except Exception:
+    raise SystemExit(0)
+
+id_to_label = payload.get("id_to_label") if isinstance(payload, dict) else None
+if not isinstance(id_to_label, dict):
+    raise SystemExit(0)
+for key, label in id_to_label.items():
+    if str(label).strip().lower() == "ungated":
+        print(key)
+        raise SystemExit(0)
+PY
+    )
+fi
+if [[ -z "$ungated_id" ]]; then
+    ungated_id="$Training_UngatedCellLabel"
+fi
+
 if [[ ! -f "$jar_path" ]]; then
     echo "Error: CyGATE jar not found at $jar_path" >&2
     exit 1
@@ -246,7 +280,40 @@ for cygated in "$tmp_test_dir/data_import-data-"+([0-9])_cygated.csv; do
   # echo $number
 
   # Extract predicted cell types
-  awk -F',' 'NR>1 {print $NF}' $cygated > "$tmp_pred/${NAME}-prediction-$number.csv"
+  pred_tmp=$(mktemp)
+  awk -F',' 'NR>1 {print $NF}' "$cygated" > "$pred_tmp"
+
+  testfile="$tmp_test_dir/${NAME}-data-$number.csv"
+  if [[ ! -f "$testfile" ]]; then
+    testfile="$tmp_test_dir/data_import-data-$number.csv"
+  fi
+
+  awk -F',' -v ungated="$ungated_id" -v sample="$number" '
+    FNR==NR {pred[++n]=$1; next}
+    NR==1 {next}
+    {
+      missing=0
+      for (i=1; i<=NF; i++) {
+        if ($i == "") { missing=1; break }
+      }
+      if (missing) {
+        print ungated
+      } else {
+        idx++
+        if (idx > n) {
+          print ungated
+        } else {
+          print pred[idx]
+        }
+      }
+    }
+    END {
+      if (idx != n) {
+        print "Warning: prediction count mismatch for sample", sample, "pred", n, "used", idx > "/dev/stderr"
+      }
+    }
+  ' "$pred_tmp" "$testfile" > "$tmp_pred/${NAME}-prediction-$number.csv"
+  rm -f "$pred_tmp"
 
 done
 
