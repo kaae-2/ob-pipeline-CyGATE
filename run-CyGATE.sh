@@ -1,6 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 
+script_dir="$(cd -- "$(dirname -- "$0")" && pwd)"
+jar_path="${script_dir}/vendor/CyGate_v1.02.jar"
+
 # Parse arguments
 while [[ $# -gt 0 ]]; do
     key="$1"
@@ -63,8 +66,10 @@ foo_dir=$(mktemp -d)
 Training_UngatedCellLabel="ungated" # TODO: UPDATE THIS --> done
 tmp_pred=$(mktemp -d)
 
-TMP_JAR=$(mktemp -d)
-wget -q "https://github.com/HanyangBISLab/cygate/raw/main/CyGate_v1.02.jar" -O "$TMP_JAR/CyGate_v1.02.jar"
+if [[ ! -f "$jar_path" ]]; then
+    echo "Error: CyGATE jar not found at $jar_path" >&2
+    exit 1
+fi
 
 # PATHS FOR LOCAL TEST RUN 
 # tmp_train_dir="/Users/srz223/Documents/courses/Benchmarking/repos/ob-pipeline-CyGATE/tmp_train"
@@ -218,7 +223,7 @@ done
 echo "CyGATE: running model" >&2
 
 cygate_log=$(mktemp)
-if ! java -jar "$TMP_JAR/CyGate_v1.02.jar" --c "$foo_file" >"$cygate_log" 2>&1; then
+if ! java -jar "$jar_path" --c "$foo_file" >"$cygate_log" 2>&1; then
   echo "ERROR: CyGATE failed" >&2
   cat "$cygate_log" >&2
   exit 1
