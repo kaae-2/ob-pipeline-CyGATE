@@ -60,7 +60,8 @@ echo "Dataset name: $NAME" >&2
 tmp_train_dir=$(mktemp -d)
 tmp_test_dir=$(mktemp -d)
 foo_dir=$(mktemp -d)
-Training_UngatedCellLabel="ungated" # TODO: UPDATE THIS --> done
+#Training_UngatedCellLabel="ungated" # TODO: UPDATE THIS --> done
+Training_UngatedCellLabel="0"
 tmp_pred=$(mktemp -d)
 
 TMP_JAR=$(mktemp -d)
