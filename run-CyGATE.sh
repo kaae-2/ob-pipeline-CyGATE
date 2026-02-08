@@ -106,6 +106,15 @@ if [[ ! -f "$jar_path" ]]; then
     exit 1
 fi
 
+if [[ -n "${CYGATE_JAVA_OPTS:-}" ]]; then
+    # shellcheck disable=SC2206
+    java_opts=( ${CYGATE_JAVA_OPTS} )
+else
+    java_xms="${CYGATE_JAVA_XMS:-512m}"
+    java_xmx="${CYGATE_JAVA_XMX:-8g}"
+    java_opts=("-Xms${java_xms}" "-Xmx${java_xmx}")
+fi
+
 # PATHS FOR LOCAL TEST RUN 
 # tmp_train_dir="/Users/srz223/Documents/courses/Benchmarking/repos/ob-pipeline-CyGATE/tmp_train"
 # tmp_test_dir="/Users/srz223/Documents/courses/Benchmarking/repos/ob-pipeline-CyGATE/tmp_test"
@@ -256,9 +265,10 @@ done
 # -------------------------------
 
 echo "CyGATE: running model" >&2
+echo "CyGATE: java opts: ${java_opts[*]}" >&2
 
 cygate_log=$(mktemp)
-if ! java -jar "$jar_path" --c "$foo_file" >"$cygate_log" 2>&1; then
+if ! java "${java_opts[@]}" -jar "$jar_path" --c "$foo_file" >"$cygate_log" 2>&1; then
   echo "ERROR: CyGATE failed" >&2
   cat "$cygate_log" >&2
   exit 1
