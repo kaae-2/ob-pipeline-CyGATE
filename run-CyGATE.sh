@@ -161,25 +161,19 @@ for archive in "$DATA_TRAIN_MATRIX" "$DATA_TRAIN_LABELS" "$DATA_TEST_MATRIX"; do
     fi
 done
 
-# Extract safely into temp dirs
-if tar -tzf "$DATA_TRAIN_MATRIX" >/dev/null 2>&1; then
-    tar -xzf "$DATA_TRAIN_MATRIX" -C "$tmp_train_dir/train_x"
-else
-    echo "Error: $DATA_TRAIN_MATRIX is not a valid tar.gz file"
+# Extract archives
+if ! tar -xzf "$DATA_TRAIN_MATRIX" -C "$tmp_train_dir/train_x"; then
+    echo "Error: failed to extract $DATA_TRAIN_MATRIX" >&2
     exit 1
 fi
 
-if tar -tzf "$DATA_TRAIN_LABELS" >/dev/null 2>&1; then
-    tar -xzf "$DATA_TRAIN_LABELS" -C "$tmp_train_dir/train_y"
-else
-    echo "Error: $DATA_TRAIN_LABELS is not a valid tar.gz file"
+if ! tar -xzf "$DATA_TRAIN_LABELS" -C "$tmp_train_dir/train_y"; then
+    echo "Error: failed to extract $DATA_TRAIN_LABELS" >&2
     exit 1
 fi
 
-if tar -tzf "$DATA_TEST_MATRIX" >/dev/null 2>&1; then
-    tar -xzf "$DATA_TEST_MATRIX" -C "$tmp_test_raw_dir"
-else
-    echo "Error: $DATA_TEST_MATRIX is not a valid tar.gz file"
+if ! tar -xzf "$DATA_TEST_MATRIX" -C "$tmp_test_raw_dir"; then
+    echo "Error: failed to extract $DATA_TEST_MATRIX" >&2
     exit 1
 fi
 
@@ -192,8 +186,9 @@ shopt -s nullglob
 for xfile in "$tmp_train_dir/train_x"/*.csv; do
 
     # Extract sample number
-    base=$(basename "$xfile" .csv)
-    number=$(echo "$base" | cut -d"-" -f3)
+    base="${xfile##*/}"
+    number="${base#data_import-data-}"
+    number="${number%.csv}"
 
     x_train_file="$tmp_train_dir/train_x/data_import-data-$number.csv"
     y_train_file="$tmp_train_dir/train_y/data_import-label-$number.csv"
@@ -208,9 +203,6 @@ for xfile in "$tmp_train_dir/train_x"/*.csv; do
 
     combined_file="$tmp_train_dir/train_xy/train_xy_$number.csv"
 
-    # Combine x and y
-    paste -d "," "$x_train_file" "$y_train_file" > "$combined_file"
-
     # --- Generate header robustly ---
     # Take first row, remove trailing commas, count fields
     first_row=$(head -1 "$x_train_file" | sed 's/,+$//')
@@ -221,8 +213,8 @@ for xfile in "$tmp_train_dir/train_x"/*.csv; do
     header=${header%,} # remove trailing comma
     header="$header,label"
 
-    # Prepend header safely
-    { echo "$header"; cat "$combined_file"; } > "${combined_file}.tmp" && mv "${combined_file}.tmp" "$combined_file"
+    # Write final file in one pass with header + pasted content
+    { echo "$header"; paste -d "," "$x_train_file" "$y_train_file"; } > "$combined_file"
 
 done
 
@@ -248,8 +240,9 @@ for testfile in "$tmp_test_raw_dir/data_import-data-"+([0-9]).csv; do
     # Skip files that might already have *_cygated.csv
     [[ "$testfile" == *_cygated.csv ]] && continue
 
-    base=$(basename "$testfile")
-    number=$(echo "$base" | cut -d"-" -f3 | cut -d"." -f1)
+    base="${testfile##*/}"
+    number="${base#data_import-data-}"
+    number="${number%.csv}"
     prepared_testfile="$tmp_test_work_dir/$base"
     row_mask_file="$tmp_meta_dir/sample-${number}.mask"
 
@@ -307,25 +300,29 @@ echo "CyGATE: packaging output" >&2
 for cygated in "$tmp_test_work_dir/data_import-data-"+([0-9])_cygated.csv; do
 
   # Extract unique sample identifier
-  base=$(basename "$cygated" .csv)
-  number=$(echo "$base" | cut -d"-" -f3 | cut -d"_" -f1)
+  base="${cygated##*/}"
+  number="${base#data_import-data-}"
+  number="${number%%_*}"
 
   # echo $base
   # echo $number
 
   # Extract predicted cell types
-  pred_tmp=$(mktemp)
-  awk -F',' 'NR>1 {print $NF}' "$cygated" > "$pred_tmp"
-
   row_mask_file="$tmp_meta_dir/sample-${number}.mask"
   if [[ ! -f "$row_mask_file" ]]; then
     echo "Warning: missing row mask for sample $number; defaulting rows to model output only" >&2
     row_mask_file=$(mktemp)
-    awk 'END { for (i=1; i<=NR; i++) print 0 }' "$pred_tmp" > "$row_mask_file"
+    awk -F',' 'NR>1 { print 0 }' "$cygated" > "$row_mask_file"
   fi
 
-  awk -v ungated="$ungated_id" -v sample="$number" '
-    FNR==NR {pred[++n]=$1; next}
+  awk -F',' -v ungated="$ungated_id" -v sample="$number" '
+    ARGIND == 1 {
+      if (FNR == 1) {
+        next
+      }
+      pred[++n]=$NF
+      next
+    }
     {
       if ($1 == 1) {
         print ungated
@@ -343,8 +340,7 @@ for cygated in "$tmp_test_work_dir/data_import-data-"+([0-9])_cygated.csv; do
         print "Warning: prediction count mismatch for sample", sample, "pred", n, "used", used > "/dev/stderr"
       }
     }
-  ' "$pred_tmp" "$row_mask_file" > "$tmp_pred/${NAME}-prediction-$number.csv"
-  rm -f "$pred_tmp"
+  ' "$cygated" "$row_mask_file" > "$tmp_pred/${NAME}-prediction-$number.csv"
   [[ "$row_mask_file" == /tmp/* ]] && rm -f "$row_mask_file"
 
 done
@@ -354,7 +350,7 @@ shopt -u extglob
 echo "CyGATE: writing archive" >&2
 # tar -czvf "$OUTPUT_DIR/$NAME"_predicted_labels.tar.gz -C "$tmp_pred" .
 # tar -czvf "$OUTPUT_DIR/$NAME"_predicted_labels.tar.gz *.csv
-tar -czvf "$OUTPUT_DIR/${NAME}_predicted_labels.tar.gz" -C "$tmp_pred" .
+tar -czf "$OUTPUT_DIR/${NAME}_predicted_labels.tar.gz" -C "$tmp_pred" .
 
 # -------------------------------
 # CLEANUP
