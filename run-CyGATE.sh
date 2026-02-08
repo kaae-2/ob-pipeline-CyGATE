@@ -61,7 +61,9 @@ mkdir -p "$OUTPUT_DIR"
 # -------------------------------
 
 tmp_train_dir=$(mktemp -d)
-tmp_test_dir=$(mktemp -d)
+tmp_test_raw_dir=$(mktemp -d)
+tmp_test_work_dir=$(mktemp -d)
+tmp_meta_dir=$(mktemp -d)
 foo_dir=$(mktemp -d)
 #Training_UngatedCellLabel="ungated" # TODO: UPDATE THIS --> done
 Training_UngatedCellLabel="0"
@@ -117,7 +119,8 @@ fi
 
 # PATHS FOR LOCAL TEST RUN 
 # tmp_train_dir="/Users/srz223/Documents/courses/Benchmarking/repos/ob-pipeline-CyGATE/tmp_train"
-# tmp_test_dir="/Users/srz223/Documents/courses/Benchmarking/repos/ob-pipeline-CyGATE/tmp_test"
+# tmp_test_raw_dir="/Users/srz223/Documents/courses/Benchmarking/repos/ob-pipeline-CyGATE/tmp_test_raw"
+# tmp_test_work_dir="/Users/srz223/Documents/courses/Benchmarking/repos/ob-pipeline-CyGATE/tmp_test_work"
 # foo_dir="/Users/srz223/Documents/courses/Benchmarking/repos/ob-pipeline-CyGATE/tmp_foo"
 # TMP_JAR=$foo_dir
 # tmp_pred="/Users/srz223/Documents/courses/Benchmarking/repos/ob-pipeline-CyGATE/tmp_pred"
@@ -128,7 +131,9 @@ mkdir -p "$foo_dir"
 mkdir -p "$tmp_train_dir/train_x"
 mkdir -p "$tmp_train_dir/train_y"
 mkdir -p "$tmp_train_dir/train_xy"
-mkdir -p "$tmp_test_dir"
+mkdir -p "$tmp_test_raw_dir"
+mkdir -p "$tmp_test_work_dir"
+mkdir -p "$tmp_meta_dir"
 mkdir -p "$tmp_pred"
 
 # -------------------------------
@@ -143,7 +148,7 @@ echo "CyGATE: extracting archives" >&2
 # 
 # tar -xzvf $DATA_TRAIN_MATRIX -C "$tmp_train_dir/train_x"
 # tar -xzvf $DATA_TRAIN_LABELS -C "$tmp_train_dir/train_y"
-# tar -xzvf $DATA_TEST_MATRIX -C "$tmp_test_dir"
+# tar -xzvf $DATA_TEST_MATRIX -C "$tmp_test_raw_dir"
 
 # Enable extended globbing and nullglob for safety
 shopt -s nullglob extglob
@@ -172,7 +177,7 @@ else
 fi
 
 if tar -tzf "$DATA_TEST_MATRIX" >/dev/null 2>&1; then
-    tar -xzf "$DATA_TEST_MATRIX" -C "$tmp_test_dir"
+    tar -xzf "$DATA_TEST_MATRIX" -C "$tmp_test_raw_dir"
 else
     echo "Error: $DATA_TEST_MATRIX is not a valid tar.gz file"
     exit 1
@@ -239,9 +244,14 @@ echo "Training.UngatedCellLabel= $Training_UngatedCellLabel" >> "$foo_file"
 echo "" >> "$foo_file"
 
 # Loop over test CSVs
-for testfile in "$tmp_test_dir/data_import-data-"+([0-9]).csv; do
+for testfile in "$tmp_test_raw_dir/data_import-data-"+([0-9]).csv; do
     # Skip files that might already have *_cygated.csv
     [[ "$testfile" == *_cygated.csv ]] && continue
+
+    base=$(basename "$testfile")
+    number=$(echo "$base" | cut -d"-" -f3 | cut -d"." -f1)
+    prepared_testfile="$tmp_test_work_dir/$base"
+    row_mask_file="$tmp_meta_dir/sample-${number}.mask"
 
     # Count columns in the first row, ignoring trailing commas
     first_row=$(head -1 "$testfile" | sed 's/,+$//')
@@ -251,12 +261,25 @@ for testfile in "$tmp_test_dir/data_import-data-"+([0-9]).csv; do
     header=$(printf "col%s," $(seq 1 $n_col))
     header=${header%,}  # remove trailing comma
 
-    # Prepend header to the file safely
-    tmp_file=$(mktemp)
-    { echo "$header"; cat "$testfile"; } > "$tmp_file" && mv "$tmp_file" "$testfile"
+    # Build prepared CyGATE input once, without mutating extracted raw files
+    { echo "$header"; cat "$testfile"; } > "$prepared_testfile"
 
-    # Optional: log sample
-    echo "Data.Sample= $testfile" >> "$foo_file"
+    # Persist per-row missing mask once for post-processing.
+    # 1 = row has missing values and should be forced to Ungated.
+    # 0 = row can consume one prediction from CyGATE output.
+    awk -F',' '
+      NF==0 { next }
+      $0 ~ /^[[:space:]]*$/ { next }
+      {
+        missing=0
+        for (i=1; i<=NF; i++) {
+          if ($i == "") { missing=1; break }
+        }
+        print missing
+      }
+    ' "$testfile" > "$row_mask_file"
+
+    echo "Data.Sample= $prepared_testfile" >> "$foo_file"
 done
 
 
@@ -281,7 +304,7 @@ fi
 
 echo "CyGATE: packaging output" >&2
 
-for cygated in "$tmp_test_dir/data_import-data-"+([0-9])_cygated.csv; do
+for cygated in "$tmp_test_work_dir/data_import-data-"+([0-9])_cygated.csv; do
 
   # Extract unique sample identifier
   base=$(basename "$cygated" .csv)
@@ -294,39 +317,35 @@ for cygated in "$tmp_test_dir/data_import-data-"+([0-9])_cygated.csv; do
   pred_tmp=$(mktemp)
   awk -F',' 'NR>1 {print $NF}' "$cygated" > "$pred_tmp"
 
-  testfile="$tmp_test_dir/${NAME}-data-$number.csv"
-  if [[ ! -f "$testfile" ]]; then
-    testfile="$tmp_test_dir/data_import-data-$number.csv"
+  row_mask_file="$tmp_meta_dir/sample-${number}.mask"
+  if [[ ! -f "$row_mask_file" ]]; then
+    echo "Warning: missing row mask for sample $number; defaulting rows to model output only" >&2
+    row_mask_file=$(mktemp)
+    awk 'END { for (i=1; i<=NR; i++) print 0 }' "$pred_tmp" > "$row_mask_file"
   fi
 
-  awk -F',' -v ungated="$ungated_id" -v sample="$number" '
+  awk -v ungated="$ungated_id" -v sample="$number" '
     FNR==NR {pred[++n]=$1; next}
-    FNR==1 && NR!=1 {next}
-    NF==0 {next}
-    $0 ~ /^[[:space:]]*$/ {next}
     {
-      missing=0
-      for (i=1; i<=NF; i++) {
-        if ($i == "") { missing=1; break }
-      }
-      if (missing) {
+      if ($1 == 1) {
         print ungated
       } else {
-        idx++
-        if (idx > n) {
+        used++
+        if (used > n) {
           print ungated
         } else {
-          print pred[idx]
+          print pred[used]
         }
       }
     }
     END {
-      if (idx != n) {
-        print "Warning: prediction count mismatch for sample", sample, "pred", n, "used", idx > "/dev/stderr"
+      if (used != n) {
+        print "Warning: prediction count mismatch for sample", sample, "pred", n, "used", used > "/dev/stderr"
       }
     }
-  ' "$pred_tmp" "$testfile" > "$tmp_pred/${NAME}-prediction-$number.csv"
+  ' "$pred_tmp" "$row_mask_file" > "$tmp_pred/${NAME}-prediction-$number.csv"
   rm -f "$pred_tmp"
+  [[ "$row_mask_file" == /tmp/* ]] && rm -f "$row_mask_file"
 
 done
 
@@ -343,6 +362,8 @@ tar -czvf "$OUTPUT_DIR/${NAME}_predicted_labels.tar.gz" -C "$tmp_pred" .
 echo "CyGATE: done" >&2
 
 rm -rf "$tmp_train_dir"
-rm -rf "$tmp_test_dir"
+rm -rf "$tmp_test_raw_dir"
+rm -rf "$tmp_test_work_dir"
+rm -rf "$tmp_meta_dir"
 rm -rf "$foo_dir"
 rm -rf "$tmp_pred"
