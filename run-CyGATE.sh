@@ -103,6 +103,9 @@ if [[ -z "$ungated_id" ]]; then
     ungated_id="$Training_UngatedCellLabel"
 fi
 
+# Enforce benchmark convention: ungated/unlabeled predictions must be 0.
+ungated_id="0"
+
 if [[ ! -f "$jar_path" ]]; then
     echo "Error: CyGATE jar not found at $jar_path" >&2
     exit 1
@@ -316,11 +319,23 @@ for cygated in "$tmp_test_work_dir/data_import-data-"+([0-9])_cygated.csv; do
   fi
 
   awk -F',' -v ungated="$ungated_id" -v sample="$number" '
+    function normalize_label(v, t) {
+      t = v
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", t)
+      if (t == "") {
+        return ungated
+      }
+      t_l = tolower(t)
+      if (t_l == "ungated" || t_l == "unknown" || t_l == "unlabeled" || t_l == "unlabelled" || t_l == "na" || t_l == "nan") {
+        return ungated
+      }
+      return t
+    }
     ARGIND == 1 {
       if (FNR == 1) {
         next
       }
-      pred[++n]=$NF
+      pred[++n]=normalize_label($NF)
       next
     }
     {
