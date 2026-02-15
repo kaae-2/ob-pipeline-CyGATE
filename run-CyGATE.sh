@@ -20,6 +20,10 @@ while [[ $# -gt 0 ]]; do
             DATA_TEST_MATRIX="$2"
             shift 2
             ;;
+        --data.label_key)
+            DATA_LABEL_KEY="$2"
+            shift 2
+            ;;
         --output_dir|-o)
             OUTPUT_DIR="$2"
             shift 2
@@ -70,7 +74,10 @@ Training_UngatedCellLabel="0"
 tmp_pred=$(mktemp -d)
 
 ungated_id=""
-label_key_path="$(dirname "$DATA_TRAIN_LABELS")/${NAME}.label_key.json.gz"
+label_key_path="${DATA_LABEL_KEY:-}"
+if [[ -z "$label_key_path" ]]; then
+    label_key_path="$(dirname "$DATA_TRAIN_LABELS")/${NAME}.label_key.json.gz"
+fi
 if [[ ! -f "$label_key_path" ]]; then
     label_key_path="$(dirname "$DATA_TEST_MATRIX")/${NAME}.label_key.json.gz"
 fi
