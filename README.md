@@ -12,6 +12,11 @@ Wraps the CyGATE Java tool to match Omnibenchmark inputs/outputs.
 The wrapper extracts train/test archives, generates CyGATE config, runs the jar,
 and packages per-sample predictions.
 
+The shell wrapper itself does not transform feature values. The vendored
+`vendor/CyGate_v1.02.jar` has been patched to remove the internal
+`arcsinh(x / 5)` step while preserving the Java implementation's clipping
+behavior for bounded internal grids.
+
 ## Run locally
 
 ```bash
