@@ -123,9 +123,11 @@ if [[ -n "${CYGATE_JAVA_OPTS:-}" ]]; then
     java_opts=( ${CYGATE_JAVA_OPTS} )
 else
     java_xms="${CYGATE_JAVA_XMS:-512m}"
-    java_xmx="${CYGATE_JAVA_XMX:-8g}"
+    java_xmx="${CYGATE_JAVA_XMX:-5g}"
     java_opts=("-Xms${java_xms}" "-Xmx${java_xmx}")
 fi
+
+echo "CyGATE: heap defaults reserve headroom inside the rule memory budget; raise CYGATE_JAVA_XMX together with analysis_cygate_default:mem_mb if needed" >&2
 
 # PATHS FOR LOCAL TEST RUN 
 # tmp_train_dir="/Users/srz223/Documents/courses/Benchmarking/repos/ob-pipeline-CyGATE/tmp_train"
@@ -160,8 +162,8 @@ echo "CyGATE: extracting archives" >&2
 # tar -xzvf $DATA_TRAIN_LABELS -C "$tmp_train_dir/train_y"
 # tar -xzvf $DATA_TEST_MATRIX -C "$tmp_test_raw_dir"
 
-# Enable extended globbing and nullglob for safety
-shopt -s nullglob extglob
+# Enable nullglob for safety
+shopt -s nullglob
 
 # Check that each archive exists before extracting
 for archive in "$DATA_TRAIN_MATRIX" "$DATA_TRAIN_LABELS" "$DATA_TEST_MATRIX"; do
@@ -188,9 +190,6 @@ if ! tar -xzf "$DATA_TEST_MATRIX" -C "$tmp_test_raw_dir"; then
 fi
 
 echo "CyGATE: preparing training data" >&2
-
-# enable extended globbing
-shopt -s nullglob
 
 # Assumes matching filenames between train_x and train_y
 for xfile in "$tmp_train_dir/train_x"/*.csv; do
@@ -246,13 +245,14 @@ echo "Training.UngatedCellLabel= $Training_UngatedCellLabel" >> "$foo_file"
 echo "" >> "$foo_file"
 
 # Loop over test CSVs
-for testfile in "$tmp_test_raw_dir/data_import-data-"+([0-9]).csv; do
+for testfile in "$tmp_test_raw_dir"/data_import-data-*.csv; do
     # Skip files that might already have *_cygated.csv
     [[ "$testfile" == *_cygated.csv ]] && continue
 
     base="${testfile##*/}"
     number="${base#data_import-data-}"
     number="${number%.csv}"
+    [[ "$number" =~ ^[0-9]+$ ]] || continue
     prepared_testfile="$tmp_test_work_dir/$base"
     row_mask_file="$tmp_meta_dir/sample-${number}.mask"
 
@@ -307,12 +307,13 @@ fi
 
 echo "CyGATE: packaging output" >&2
 
-for cygated in "$tmp_test_work_dir/data_import-data-"+([0-9])_cygated.csv; do
+for cygated in "$tmp_test_work_dir"/data_import-data-*_cygated.csv; do
 
   # Extract unique sample identifier
   base="${cygated##*/}"
   number="${base#data_import-data-}"
   number="${number%%_*}"
+  [[ "$number" =~ ^[0-9]+$ ]] || continue
 
   # echo $base
   # echo $number
@@ -367,7 +368,7 @@ for cygated in "$tmp_test_work_dir/data_import-data-"+([0-9])_cygated.csv; do
 
 done
 
-shopt -u extglob
+shopt -u nullglob
 
 echo "CyGATE: writing archive" >&2
 # tar -czvf "$OUTPUT_DIR/$NAME"_predicted_labels.tar.gz -C "$tmp_pred" .

@@ -26,8 +26,14 @@ bash models/CyGATE/run_cygate.sh
 Tune JVM if needed:
 
 ```bash
-CYGATE_JAVA_XMS=512m CYGATE_JAVA_XMX=6g bash models/CyGATE/run_cygate.sh
+CYGATE_JAVA_XMS=512m CYGATE_JAVA_XMX=5g bash models/CyGATE/run_cygate.sh
 ```
+
+The default `5g` heap is intentionally lower than the benchmark rule memory
+budget (`analysis_cygate_default:mem_mb=7500`) so the JVM has headroom for
+native memory, decompression, and shell utilities. When CyGATE dies with a bare
+`Killed`, treat it as an OOM signal first and raise the Snakemake memory limit
+and `CYGATE_JAVA_XMX` together.
 
 ## Run as part of benchmark
 
