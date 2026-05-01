@@ -188,14 +188,26 @@ echo "CyGATE: preparing training data" >&2
 
 # Assumes matching filenames between train_x and train_y
 for xfile in "$tmp_train_dir/train_x"/*.csv; do
+    [[ -f "$xfile" ]] || continue
 
-    # Extract sample number
     base="${xfile##*/}"
-    number="${base#data_import-data-}"
-    number="${number%.csv}"
+    number=$(python - <<'PY' "$base"
+import re
+import sys
+name = sys.argv[1]
+match = re.search(r'(\d+)(?=\.csv$)', name)
+print(match.group(1) if match else '')
+PY
+)
 
-    x_train_file="$tmp_train_dir/train_x/data_import-data-$number.csv"
-    y_train_file="$tmp_train_dir/train_y/data_import-label-$number.csv"
+    x_train_file="$xfile"
+    y_base="${base/-data-/-label-}"
+    y_train_file="$tmp_train_dir/train_y/$y_base"
+
+    if [[ ! -f "$y_train_file" ]]; then
+        echo "Warning: missing matching label file for training sample $base" >&2
+        continue
+    fi
 
     n_row_x=$(wc -l < "$x_train_file")
     n_row_y=$(wc -l < "$y_train_file")
@@ -240,13 +252,20 @@ echo "Training.UngatedCellLabel= $Training_UngatedCellLabel" >> "$foo_file"
 echo "" >> "$foo_file"
 
 # Loop over test CSVs
-for testfile in "$tmp_test_raw_dir"/data_import-data-*.csv; do
+for testfile in "$tmp_test_raw_dir"/*.csv; do
+    [[ -f "$testfile" ]] || continue
     # Skip files that might already have *_cygated.csv
     [[ "$testfile" == *_cygated.csv ]] && continue
 
     base="${testfile##*/}"
-    number="${base#data_import-data-}"
-    number="${number%.csv}"
+    number=$(python - <<'PY' "$base"
+import re
+import sys
+name = sys.argv[1]
+match = re.search(r'(\d+)(?=\.csv$)', name)
+print(match.group(1) if match else '')
+PY
+)
     [[ "$number" =~ ^[0-9]+$ ]] || continue
     prepared_testfile="$tmp_test_work_dir/$base"
     row_mask_file="$tmp_meta_dir/sample-${number}.mask"
@@ -302,12 +321,19 @@ fi
 
 echo "CyGATE: packaging output" >&2
 
-for cygated in "$tmp_test_work_dir"/data_import-data-*_cygated.csv; do
+for cygated in "$tmp_test_work_dir"/*_cygated.csv; do
+  [[ -f "$cygated" ]] || continue
 
   # Extract unique sample identifier
   base="${cygated##*/}"
-  number="${base#data_import-data-}"
-  number="${number%%_*}"
+  number=$(python - <<'PY' "$base"
+import re
+import sys
+name = sys.argv[1]
+match = re.search(r'(\d+)(?=_cygated\.csv$)', name)
+print(match.group(1) if match else '')
+PY
+)
   [[ "$number" =~ ^[0-9]+$ ]] || continue
 
   # echo $base
