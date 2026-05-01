@@ -14,4 +14,5 @@ fi
   --output_dir "${script_dir}/out/data/analysis/default/cygate" \
   --data.train_matrix "${script_dir}/out/data/data_preprocessing/default/data_import.train.matrix.tar.gz" \
   --data.train_labels "${script_dir}/out/data/data_preprocessing/default/data_import.train.labels.tar.gz" \
-  --data.test_matrix "${script_dir}/out/data/data_preprocessing/default/data_import.test.matrices.tar.gz"
+  --data.test_matrix "${script_dir}/out/data/data_preprocessing/default/data_import.test.matrices.tar.gz" \
+  --data.metadata "${script_dir}/out/data/data_preprocessing/default/data_import.metadata.json.gz"

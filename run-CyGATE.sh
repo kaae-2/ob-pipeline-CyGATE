@@ -20,8 +20,8 @@ while [[ $# -gt 0 ]]; do
             DATA_TEST_MATRIX="$2"
             shift 2
             ;;
-        --data.label_key)
-            DATA_LABEL_KEY="$2"
+        --data.metadata)
+            DATA_METADATA="$2"
             shift 2
             ;;
         --output_dir|-o)
@@ -74,20 +74,14 @@ Training_UngatedCellLabel="0"
 tmp_pred=$(mktemp -d)
 
 ungated_id=""
-label_key_path="${DATA_LABEL_KEY:-}"
-if [[ -z "$label_key_path" ]]; then
-    label_key_path="$(dirname "$DATA_TRAIN_LABELS")/${NAME}.label_key.json.gz"
-fi
-if [[ ! -f "$label_key_path" ]]; then
-    label_key_path="$(dirname "$DATA_TEST_MATRIX")/${NAME}.label_key.json.gz"
-fi
-if [[ -f "$label_key_path" ]]; then
-    ungated_id=$(LABEL_KEY_PATH="$label_key_path" python - <<'PY'
+metadata_path="${DATA_METADATA:-}"
+if [[ -f "$metadata_path" ]]; then
+    ungated_id=$(METADATA_PATH="$metadata_path" python - <<'PY'
 import gzip
 import json
 import os
 
-path = os.environ.get("LABEL_KEY_PATH")
+path = os.environ.get("METADATA_PATH")
 if not path:
     raise SystemExit(0)
 try:
@@ -96,7 +90,8 @@ try:
 except Exception:
     raise SystemExit(0)
 
-id_to_label = payload.get("id_to_label") if isinstance(payload, dict) else None
+labels = payload.get("labels") if isinstance(payload, dict) else None
+id_to_label = labels.get("id_to_label") if isinstance(labels, dict) else payload.get("id_to_label")
 if not isinstance(id_to_label, dict):
     raise SystemExit(0)
 for key, label in id_to_label.items():
